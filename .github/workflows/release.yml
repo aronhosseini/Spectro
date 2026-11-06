@@ -13,33 +13,57 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - name: Configure & build (universal)
+
+      - name: Configure (universal arm64 + x86_64)
+        run: cmake -B build -G Xcode -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
         run: |
-          cmake -B build -G Xcode -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target Spectro_VST3 Spectro_AU Spectro_Standalone
-      - name: Ad-hoc sign + strip quarantine
+          cmake --build build --config Release --target Spectro_VST3 --parallel
+          cmake --build build --config Release --target Spectro_AU --parallel
+          cmake --build build --config Release --target Spectro_Standalone --parallel
+
+      - name: Collect, ad-hoc sign, strip quarantine
         run: |
-          A=build/Spectro_artefacts/Release
+          set -euxo pipefail
           mkdir -p dist/stage
-          cp -R "$A/VST3/Spectro.vst3" "$A/AU/Spectro.component" "$A/Standalone/Spectro.app" dist/stage/
+          for name in Spectro.vst3 Spectro.component Spectro.app; do
+            src=$(find build -name "$name" -maxdepth 6 -prune | head -1)
+            test -n "$src" || { echo "::error::$name not found in build/"; find build -maxdepth 5 -name '*.vst3' -o -maxdepth 5 -name '*.component' -o -maxdepth 5 -name '*.app'; exit 1; }
+            cp -R "$src" dist/stage/
+          done
           for b in dist/stage/*; do
             xattr -cr "$b"
             codesign --force --deep --sign - "$b"
+            codesign --verify --deep --strict "$b"
           done
+
       - name: Zip (used by curl script + Homebrew)
-        run: cd dist/stage && ditto -c -k . ../Spectro-macOS.zip
-      - name: Build .pkg (optional)
         run: |
-          mkdir -p pkgroot/Library/Audio/Plug-Ins/VST3 pkgroot/Library/Audio/Plug-Ins/Components pkgroot/Applications
-          cp -R dist/stage/Spectro.vst3 pkgroot/Library/Audio/Plug-Ins/VST3/
+          cd dist/stage
+          ditto -c -k --norsrc . ../Spectro-macOS.zip
+          cd .. && shasum -a 256 Spectro-macOS.zip | tee Spectro-macOS.zip.sha256
+
+      - name: Build .pkg (optional)
+        continue-on-error: true
+        run: |
+          set -euxo pipefail
+          V="${GITHUB_REF_NAME#v}"; [[ "$V" =~ ^[0-9]+(\.[0-9]+)*$ ]] || V="0.0.0"
+          mkdir -p pkgroot/Library/Audio/Plug-Ins/VST3 pkgroot/Library/Audio/Plug-Ins/Components pkgroot/Applications pkgscripts
+          cp -R dist/stage/Spectro.vst3      pkgroot/Library/Audio/Plug-Ins/VST3/
           cp -R dist/stage/Spectro.component pkgroot/Library/Audio/Plug-Ins/Components/
-          cp -R dist/stage/Spectro.app pkgroot/Applications/
-          mkdir scripts && cp installer/mac/postinstall scripts/ && chmod +x scripts/postinstall
-          pkgbuild --root pkgroot --scripts scripts --identifier com.aronh.spectro --version "${GITHUB_REF_NAME#v}" dist/Spectro-macOS.pkg
-      - name: Print SHA256 for the Homebrew cask
-        run: shasum -a 256 dist/Spectro-macOS.zip | tee dist/Spectro-macOS.zip.sha256
+          cp -R dist/stage/Spectro.app       pkgroot/Applications/
+          cp installer/mac/postinstall pkgscripts/postinstall && chmod +x pkgscripts/postinstall
+          pkgbuild --root pkgroot --scripts pkgscripts --identifier com.aronh.spectro --version "$V" dist/Spectro-macOS.pkg
+
       - uses: actions/upload-artifact@v4
-        with: { name: macos, path: "dist/Spectro-macOS.*" }
+        with:
+          name: macos
+          path: |
+            dist/Spectro-macOS.zip
+            dist/Spectro-macOS.zip.sha256
+            dist/Spectro-macOS.pkg
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
