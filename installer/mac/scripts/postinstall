@@ -1,0 +1,6 @@
+#!/bin/bash
+# Strip quarantine from everything the package just installed.
+for p in "/Library/Audio/Plug-Ins/VST3/Spectro.vst3" "/Library/Audio/Plug-Ins/Components/Spectro.component" "/Applications/Spectro.app"; do
+  [ -e "$p" ] && xattr -dr com.apple.quarantine "$p" 2>/dev/null
+done
+exit 0

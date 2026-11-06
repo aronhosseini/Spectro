@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPECTRO</title>
+<style>
+:root{
+  --bg:#0b0d12; --glass:rgba(24,28,38,.72); --glass2:rgba(36,41,54,.6);
+  --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
+  --txt:#e8ecf4; --mut:#8791a5; --acc:#4da3ff; --acc2:#7cf0d6;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#05070b;color:var(--txt);
+  font:500 12px/1.2 "Inter","SF Pro Text",system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+body{display:grid;place-items:stretch}
+.win{position:relative;min-width:760px;min-height:560px;height:100vh;display:grid;
+  grid-template-rows:auto auto auto 1fr auto auto;gap:10px;padding:0 14px 0;
+  background:
+    radial-gradient(900px 500px at 15% -10%,rgba(77,163,255,.14),transparent 60%),
+    radial-gradient(700px 500px at 100% 110%,rgba(124,240,214,.08),transparent 60%),
+    linear-gradient(180deg,#141822,#0d1017);
+  border:1px solid var(--line2);border-radius:14px;overflow:hidden}
+/* title bar */
+.bar{display:flex;align-items:center;gap:14px;height:46px;padding:0 2px;-webkit-app-region:drag}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.35)}
+.lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.seg{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--glass2);backdrop-filter:blur(14px)}
+.seg button{all:unset;cursor:pointer;padding:6px 14px;color:var(--mut);font-weight:600;letter-spacing:.08em}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{color:var(--txt);background:rgba(77,163,255,.18)}
+.mark{margin:0 auto;width:26px;height:26px;opacity:.55}
+.sub{display:flex;align-items:center;height:36px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -14px;padding:0 16px;gap:10px;background:rgba(255,255,255,.02)}
+.sub b{font-weight:700;letter-spacing:.2em}.sub span{color:var(--mut);letter-spacing:.16em}
+.sub .sp{flex:1}
+.ic{width:22px;height:22px;stroke:var(--mut);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;cursor:pointer;transition:.15s}
+.ic:hover{stroke:var(--acc)}
+/* scales */
+.scale{height:34px;border-radius:10px;background:#07090d;border:1px solid var(--line);padding:5px 14px 0;position:relative}
+.scale .grad{height:6px;border-radius:3px;background:linear-gradient(90deg,#000040,#0a2bd0 14%,#00c8e0 30%,#12d43a 45%,#e8e820 70%,#ff8a00 88%,#ff2a00);}
+.scale .nums{display:flex;justify-content:space-between;color:var(--mut);font-size:11px;margin-top:3px;font-variant-numeric:tabular-nums}
+.scale .nums em{font-style:normal;color:#5d667a;position:absolute;left:12px;bottom:3px}
+.scale .nums{padding-left:22px}
+/* main */
+.main{display:grid;grid-template-columns:1fr 92px;gap:10px;min-height:0}
+.spec{position:relative;min-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line2);background:#000;display:flex;flex-direction:column}
+.spec canvas{flex:1;width:100%;min-height:0;display:block}
+.fax{height:24px;position:relative;background:#06080c;border-top:1px solid var(--line);color:var(--mut);font-size:11px}
+.fax span{position:absolute;top:5px;transform:translateX(-50%);font-variant-numeric:tabular-nums}
+.fax span:before{content:"";position:absolute;left:50%;top:-6px;height:5px;border-left:1px solid #3a4152}
+.meters{display:grid;grid-template-rows:1fr 1fr;gap:8px;min-height:0}
+.mtr{display:flex;flex-direction:column;min-height:0;border-radius:10px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(16px);padding:6px}
+.mtr .cells{flex:1;display:flex;flex-direction:column;gap:2px;min-height:0}
+.mtr .cells div{flex:1;border-radius:3px;display:grid;place-items:center;font-size:9px;line-height:1;overflow:hidden;font-weight:700;color:#06080c;min-height:0;font-variant-numeric:tabular-nums}
+.mtr label{text-align:center;color:var(--mut);letter-spacing:.2em;font-size:10px;margin-top:6px}
+.scrub{height:14px;border-radius:7px;background:rgba(255,255,255,.05);border:1px solid var(--line);position:relative;margin-left:34px}
+.scrub:before{content:"";position:absolute;left:0;top:0;bottom:0;width:30%;border-radius:7px;background:rgba(77,163,255,.28)}
+.zoom{position:absolute;left:-2px;top:-9px;width:30px;height:30px;border-radius:50%;background:var(--glass2);border:1px solid var(--line2);display:grid;place-items:center}
+.scrubwrap{position:relative}
+/* panel */
+.panel{display:grid;grid-template-columns:34px 1fr;gap:12px}
+.lr{display:flex;flex-direction:column;gap:6px;justify-content:flex-end}
+.chip{all:unset;cursor:pointer;text-align:center;padding:6px 0;border-radius:8px;border:1px solid var(--line2);background:var(--glass2);color:var(--mut);font-weight:700;font-size:11px;transition:.15s}
+.chip:hover{color:var(--txt);border-color:rgba(77,163,255,.5)}
+.chip.on{color:#fff;background:linear-gradient(180deg,rgba(77,163,255,.5),rgba(77,163,255,.25));border-color:rgba(77,163,255,.7);box-shadow:0 0 14px rgba(77,163,255,.25)}
+.grid{display:grid;grid-template-columns:1.55fr 1.05fr .95fr;grid-template-rows:auto auto auto;gap:8px}
+.card{border:1px solid var(--line);border-radius:var(--r);background:var(--glass);backdrop-filter:blur(18px);padding:9px 12px;display:flex;align-items:center;gap:10px;min-width:0}
+.card h4{font-size:10.5px;letter-spacing:.14em;color:var(--mut);font-weight:700}
+.card.dim{opacity:.6}
+.a{grid-column:1}.b{grid-column:2;grid-row:1/3;flex-direction:column;align-items:stretch;gap:8px}
+.c{grid-column:3;grid-row:1/3;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;align-content:center}
+.cur{grid-column:1/-1;height:64px}
+.bigscale{flex:1;height:48px;border-radius:8px;background:#06080b;border:1px solid var(--line);padding:9px 12px 0}
+.bigscale .grad{height:6px;border-radius:3px;background:linear-gradient(90deg,#000040,#0a2bd0 14%,#00c8e0 30%,#12d43a 45%,#e8e820 70%,#ff8a00 88%,#ff2a00)}
+.bigscale .nums{display:flex;justify-content:space-between;color:var(--mut);font-size:10.5px;margin-top:6px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.sel{display:flex;gap:4px}
+.field{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.field label{color:var(--mut);letter-spacing:.12em;font-size:10.5px;font-weight:700}
+.val{min-width:84px;text-align:right;padding:6px 10px;border-radius:8px;background:#06080b;border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.val small{color:var(--mut);margin-left:4px}
+.drop{position:relative;padding:6px 26px 6px 10px;border-radius:8px;background:#06080b;border:1px solid var(--line);min-width:96px;cursor:pointer;flex:1}
+.drop:after{content:"";position:absolute;right:10px;top:50%;margin-top:-2px;border:4px solid transparent;border-top-color:var(--mut)}
+.drop:hover{border-color:rgba(77,163,255,.5)}
+.knobs{display:flex;gap:16px;justify-content:center}
+.knob{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;color:var(--mut)}
+.knob svg{width:46px;height:46px;cursor:grab}
+.cb{display:flex;align-items:center;gap:7px;color:var(--mut);font-size:10.5px;letter-spacing:.1em;font-weight:700;cursor:pointer}
+.cb i{width:15px;height:15px;border-radius:5px;border:1px solid var(--line2);background:#06080b;display:grid;place-items:center}
+.cb.on i{background:var(--acc);border-color:var(--acc)} .cb.on i:after{content:"";width:4px;height:8px;border:solid #04121f;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.tag{display:flex;align-items:center;gap:6px;color:var(--mut)}
+.info{width:16px;height:16px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;font-size:9px;font-style:italic;color:var(--mut)}
+.export{all:unset;cursor:pointer;padding:7px 16px;border-radius:9px;border:1px solid rgba(77,163,255,.6);color:#fff;font-weight:700;letter-spacing:.14em;background:linear-gradient(180deg,rgba(77,163,255,.45),rgba(77,163,255,.18));font-size:11px}
+.export:hover{box-shadow:0 0 16px rgba(77,163,255,.4)}
+.minibar{width:60px;height:14px;border-radius:5px;background:#06080b;border:1px solid var(--line);position:relative}
+.minibar:before{content:"";position:absolute;left:3px;top:3px;bottom:3px;width:3px;border-radius:2px;background:var(--acc)}
+/* footer */
+.foot{display:flex;align-items:center;justify-content:space-between;height:54px;margin:0 -14px;padding:0 20px;border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
+.foot a{font:600 26px/1 "Inter","SF Pro Display",system-ui,sans-serif;letter-spacing:.06em;color:var(--txt);text-decoration:none;transition:.2s}
+.foot a:hover{color:var(--acc);text-shadow:0 0 18px rgba(77,163,255,.6)}
+.foot a:after{content:" ↗";font-size:12px;color:var(--mut);vertical-align:super}
+.brand{display:flex;align-items:center;gap:10px;font:600 26px/1 "Inter",system-ui,sans-serif;letter-spacing:.1em}
+.brand svg{width:26px;height:26px}
+.grip{position:absolute;right:3px;bottom:3px;width:14px;height:14px;opacity:.5;cursor:nwse-resize;
+ background:linear-gradient(135deg,transparent 50%,#8791a5 50%,#8791a5 58%,transparent 58%,transparent 70%,#8791a5 70%,#8791a5 78%,transparent 78%)}
+</style>
+</head>
+<body>
+<div class="win" id="win">
+  <div class="bar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="seg"><button class="on">SPECTRO</button><button>R</button><button>W</button></div>
+    <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="#8791a5" stroke-width="1.6"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 7l4 2.2v4.6L12 16l-4-2.2V9.2z"/></svg>
+    <span style="width:150px"></span>
+  </div>
+  <div class="sub">
+    <b>SPECTRO</b><span>|</span><span>SPECTRAL ANALYSIS</span><div class="sp"></div>
+    <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.7a8 8 0 1 0 11.4 0"/></svg>
+    <svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    <svg class="ic" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/></svg>
+  </div>
+  <div class="scale"><div class="grad"></div>
+    <div class="nums"><span>100</span><span>90</span><span>80</span><span>70</span><span>60</span><span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div>
+    <em>dB</em></div>
+
+  <div class="main">
+    <div class="spec"><canvas id="cv"></canvas><div class="fax" id="fax"></div></div>
+    <div class="meters" id="meters"></div>
+  </div>
+
+  <div class="scrubwrap"><div class="scrub"></div>
+    <div class="zoom"><svg class="ic" style="width:16px;height:16px" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l5 5"/></svg></div></div>
+
+  <div class="panel">
+    <div class="lr" id="lr"><button class="chip">L</button><button class="chip">R</button><button class="chip">LR</button><button class="chip on">MIS</button></div>
+    <div class="grid">
+      <div class="card a" style="grid-row:1"><div class="bigscale"><div class="grad"></div>
+        <div class="nums"><span>dB</span><span>100</span><span>90</span><span>80</span><span>70</span><span>60</span><span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div></div></div>
+
+      <div class="card b">
+        <div class="field"><label>GAIN</label><div class="val">0<small>dB</small></div></div>
+        <div class="field"><label>FLOOR</label><div class="val">-100<small>dB</small></div></div>
+      </div>
+      <div class="card c">
+        <div class="field" style="grid-column:1/-1;justify-content:flex-start"><h4>DISPLAY</h4></div>
+        <div class="cb" data-t><i></i>X-AXIS</div><div class="cb" data-t><i></i>Y-AXIS</div>
+        <div class="cb on" data-t><i></i>GRID</div><div class="cb on" data-t><i></i>READ</div>
+      </div>
+
+      <div class="card a" style="grid-row:2"><h4>WEIGHTING</h4><div class="sel" id="wt">
+        <button class="chip on" style="width:34px">A</button><button class="chip" style="width:34px">B</button><button class="chip" style="width:34px">B</button><button class="chip" style="width:34px">C</button></div></div>
+
+      <div class="card a" style="grid-row:3;gap:12px"><h4>FFT</h4><h4 style="margin-left:6px">SIZE</h4><div class="drop" style="max-width:110px">2048</div>
+        <h4 style="margin-left:8px">WINDOW</h4><div class="drop">Hann</div></div>
+
+      <div class="card" style="grid-column:2;grid-row:3;flex-direction:column;gap:6px;padding:7px 10px">
+        <div class="row" style="width:100%;justify-content:space-between"><h4>MEMORY</h4><span class="info">i</span></div>
+        <div class="knobs" id="knobs"></div></div>
+
+      <div class="card" style="grid-column:3;grid-row:3;justify-content:space-between">
+        <div class="tag"><div class="chip on" style="padding:5px 9px">X: LOG</div></div>
+        <div class="tag"><div class="chip" style="padding:5px 12px">Y:</div></div></div>
+
+      <div class="card cur dim" style="grid-column:1/-1;grid-row:4;height:auto">
+        <h4>MAX DEND VIDEO</h4><h4 style="margin-left:10px">RANGE</h4><div class="drop"></div><span>%</span><div class="drop"></div>
+        <div class="minibar"></div><div class="minibar" style="width:50px"></div>
+        <div class="cb" style="margin-left:8px"><i></i>TO</div><div class="drop"></div>
+        <div style="flex:1"></div><div class="chip" style="padding:6px 10px">E</div><span class="info">i</span>
+        <button class="export" style="opacity:1">EXPORT</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <a href="https://www.instagram.com/aronh.official" target="_blank" rel="noopener noreferrer">ARON H</a>
+    <div class="brand">
+      <svg viewBox="0 0 28 28"><defs><radialGradient id="lg" cx="35%" cy="30%"><stop offset="0" stop-color="#9fd4ff"/><stop offset=".6" stop-color="#2d7ff0"/><stop offset="1" stop-color="#0b3a9c"/></radialGradient></defs>
+        <circle cx="14" cy="14" r="12" fill="url(#lg)"/><path d="M6 15h3l2-6 3 12 3-9 2 3h3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      SPECTRO</div>
+  </div>
+  <div class="grip" id="grip"></div>
+</div>
+
+<script>
+// ---------- colour map (matches reference: black > blue > cyan > green > yellow > orange > red)
+const stops=[[0,[0,0,8]],[.12,[6,22,150]],[.28,[10,90,230]],[.42,[0,200,200]],[.55,[20,215,60]],[.72,[235,235,20]],[.88,[255,150,0]],[1,[255,50,0]]];
+function cmap(v){v=Math.max(0,Math.min(1,v));for(let i=1;i<stops.length;i++){if(v<=stops[i][0]){const [a,ca]=stops[i-1],[b,cb]=stops[i],t=(v-a)/(b-a);return ca.map((c,k)=>c+(cb[k]-c)*t)}}return stops[stops.length-1][1]}
+// seeded noise
+function rng(s){return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
+// time-rows envelope: strip, band1, band2, band3 (from reference)
+function rowAmp(y){
+  const seg=[[0,.055,.55],[.127,.445,.86],[.456,.65,1],[.77,1,.80]];
+  let a=0;for(const [s,e,v] of seg){const f=Math.min(1,Math.max(0,Math.min((y-s)/.018,(e-y)/.018)));a=Math.max(a,v*f)}
+  return a}
+function freqCurve(x){ // x: 0..1 across plot
+  const pts=[[0,1],[.2,1],[.28,.62],[.4,.5],[.55,.36],[.65,.24],[.76,.1],[.8,0],[1,0]];
+  for(let i=1;i<pts.length;i++)if(x<=pts[i][0]){const [a,va]=pts[i-1],[b,vb]=pts[i];return va+(vb-va)*(x-a)/(b-a)}return 0}
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+function drawSpec(){
+  const dpr=Math.min(2,devicePixelRatio||1),W=Math.max(2,Math.floor(cv.clientWidth*dpr)),H=Math.max(2,Math.floor(cv.clientHeight*dpr));
+  cv.width=W;cv.height=H;const img=ctx.createImageData(W,H),r=rng(7);
+  const col=new Float32Array(W);for(let x=0;x<W;x++)col[x]=(r()-.5);
+  for(let y=0;y<H;y++){const yy=y/H,ra=rowAmp(yy),rn=(r()-.5)*.05;
+    for(let x=0;x<W;x++){const xx=x/W;
+      const stripe=(xx>.4)?Math.sin(x*.9+y*.02)*.04*(xx-.35)+col[x]*.10*(xx-.3):0;
+      const peak=.9*Math.exp(-((xx-.24)**2)/.01)*(yy>.5&&yy<.65?1:0)*.0;
+      let v=ra*freqCurve(xx)*(1+.12*Math.sin(yy*60))+ (ra>0.05&&freqCurve(xx)>0.02?stripe+rn:0);
+      // soft hot-core in low band
+      if(ra>.5)v+=.12*Math.exp(-((xx-.16)**2)/.012)*ra;
+      const c=cmap(v*0.80),i=(y*W+x)*4;img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=255}}
+  ctx.putImageData(img,0,0);
+  // refined grid
+  if(document.querySelector('.cb.on')){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;ctx.beginPath();
+    for(let i=0;i<11;i++){const x=Math.round((.058+i*.0902)*W)+.5;ctx.moveTo(x,0);ctx.lineTo(x,H)}
+    for(let i=1;i<8;i++){const y=Math.round(i*H/8)+.5;ctx.moveTo(0,y);ctx.lineTo(W,y)}ctx.stroke()}
+}
+// freq axis
+const labels=['15','31','63','125','250','500','1k','2k','4k','8k','16k'],fax=document.getElementById('fax');
+labels.forEach((l,i)=>{const s=document.createElement('span');s.textContent=l;s.style.left=(5.8+i*9.02)+'%';fax.appendChild(s)});
+// meters
+const dbs=[0,-3,-6,-10,-20,-30,-50,-70,-90,-100];
+function mcol(db){const c=cmap(1-Math.abs(db)/100*.95);return `rgb(${c.map(Math.round)})`}
+const M=document.getElementById('meters');
+['LEFT','RIGHT'].forEach(n=>{const d=document.createElement('div');d.className='mtr';
+  d.innerHTML='<div class="cells">'+dbs.map(v=>`<div style="background:${mcol(v)}">${v}</div>`).join('')+`</div><label>${n}</label>`;M.appendChild(d)});
+// knobs
+function knob(label,val){const a0=-135,a1=135,ang=a0+(val)*(a1-a0),p=a=>[23+16*Math.sin(a*Math.PI/180),23-16*Math.cos(a*Math.PI/180)];
+  const [x0,y0]=p(a0),[x1,y1]=p(ang),[xe,ye]=p(a1);const big=(ang-a0)>180?1:0;
+  return `<div class="knob"><svg viewBox="0 0 46 46"><defs><radialGradient id="kg" cx="35%" cy="30%"><stop offset="0" stop-color="#4a5266"/><stop offset="1" stop-color="#171b25"/></radialGradient></defs>
+   <path d="M${x0} ${y0}A16 16 0 1 1 ${xe} ${ye}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="3" stroke-linecap="round"/>
+   <path d="M${x0} ${y0}A16 16 0 ${big} 1 ${x1} ${y1}" fill="none" stroke="#4da3ff" stroke-width="3" stroke-linecap="round"/>
+   <circle cx="23" cy="23" r="11" fill="url(#kg)" stroke="rgba(255,255,255,.18)"/>
+   <line x1="23" y1="23" x2="${23+9*Math.sin(ang*Math.PI/180)}" y2="${23-9*Math.cos(ang*Math.PI/180)}" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>${label}</div>`}
+document.getElementById('knobs').innerHTML=knob('0 dB',.5)+knob('-100 dB',.02);
+// interactions
+document.querySelectorAll('[data-t]').forEach(e=>e.onclick=()=>{e.classList.toggle('on');drawSpec()});
+[['#lr','.chip'],['#wt','.chip']].forEach(([s,c])=>document.querySelectorAll(s+' '+c).forEach(b=>b.onclick=()=>{document.querySelectorAll(s+' '+c).forEach(x=>x.classList.remove('on'));b.classList.add('on')}));
+// resize: window follows viewport; grip lets you drag when embedded
+addEventListener('resize',drawSpec);new ResizeObserver(drawSpec).observe(cv);drawSpec();
+</script>
+</body>
+</html>
