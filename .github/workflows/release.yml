@@ -1,0 +1,71 @@
+name: Build & Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure & build (universal)
+        run: |
+          cmake -B build -G Xcode -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target Spectro_VST3 Spectro_AU Spectro_Standalone
+      - name: Ad-hoc sign + strip quarantine
+        run: |
+          A=build/Spectro_artefacts/Release
+          mkdir -p dist/stage
+          cp -R "$A/VST3/Spectro.vst3" "$A/AU/Spectro.component" "$A/Standalone/Spectro.app" dist/stage/
+          for b in dist/stage/*; do
+            xattr -cr "$b"
+            codesign --force --deep --sign - "$b"
+          done
+      - name: Zip (used by curl script + Homebrew)
+        run: cd dist/stage && ditto -c -k . ../Spectro-macOS.zip
+      - name: Build .pkg (optional)
+        run: |
+          mkdir -p pkgroot/Library/Audio/Plug-Ins/VST3 pkgroot/Library/Audio/Plug-Ins/Components pkgroot/Applications
+          cp -R dist/stage/Spectro.vst3 pkgroot/Library/Audio/Plug-Ins/VST3/
+          cp -R dist/stage/Spectro.component pkgroot/Library/Audio/Plug-Ins/Components/
+          cp -R dist/stage/Spectro.app pkgroot/Applications/
+          mkdir scripts && cp installer/mac/postinstall scripts/ && chmod +x scripts/postinstall
+          pkgbuild --root pkgroot --scripts scripts --identifier com.aronh.spectro --version "${GITHUB_REF_NAME#v}" dist/Spectro-macOS.pkg
+      - name: Print SHA256 for the Homebrew cask
+        run: shasum -a 256 dist/Spectro-macOS.zip | tee dist/Spectro-macOS.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: "dist/Spectro-macOS.*" }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target Spectro_VST3 Spectro_Standalone
+      - name: Inno Setup installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = if ($env:GITHUB_REF_NAME -like "v*") { $env:GITHUB_REF_NAME.Substring(1) } else { "0.0.0" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\windows\spectro.iss
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/Spectro-Windows-Setup.exe }
+
+  release:
+    needs: [macos, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
