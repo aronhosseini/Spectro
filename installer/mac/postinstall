@@ -1,0 +1,10 @@
+#!/bin/bash
+# Runs inside Spectro-macOS.pkg after files are copied.
+for p in "/Library/Audio/Plug-Ins/VST3/Spectro.vst3" \
+         "/Library/Audio/Plug-Ins/Components/Spectro.component" \
+         "/Applications/Spectro.app"; do
+  [ -e "$p" ] && xattr -dr com.apple.quarantine "$p" 2>/dev/null
+  [ -e "$p" ] && codesign --force --deep --sign - "$p" >/dev/null 2>&1
+done
+killall -9 AudioComponentRegistrar 2>/dev/null
+exit 0

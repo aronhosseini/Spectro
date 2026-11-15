@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+  <title>Spectro</title>
+  <organization>com.aronh</organization>
+  <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+  <domains enable_anywhere="false" enable_localSystem="true"/>
+  <conclusion file="conclusion.html" mime-type="text/html"/>
+  <choices-outline>
+    <line choice="default"><line choice="com.aronh.spectro"/></line>
+  </choices-outline>
+  <choice id="default"/>
+  <choice id="com.aronh.spectro" visible="false"><pkg-ref id="com.aronh.spectro"/></choice>
+  <pkg-ref id="com.aronh.spectro" onConclusion="none">Spectro-component.pkg</pkg-ref>
+</installer-gui-script>
